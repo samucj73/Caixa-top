@@ -1,83 +1,32 @@
 import streamlit as st
-from lotofacil_stats import LotoFacilStats
-import requests
+from lotofacil_stats import (
+    capturar_ultimos_resultados,
+    analisar_frequencia,
+    gerar_cartoes_otimizados
+)
 
-def capturar_ultimos_resultados(qtd=250):
-    url_base = "https://loteriascaixa-api.herokuapp.com/api/lotofacil/"
-    concursos = []
+st.set_page_config(page_title="Analisador Lotofácil", layout="centered")
 
-    try:
-        resp = requests.get(url_base)
-        if resp.status_code != 200:
-            st.error("Erro ao buscar o último concurso.")
-            return []
+st.markdown("<h1 style='text-align:center;'>Analisador Inteligente - Lotofácil</h1>", unsafe_allow_html=True)
 
-        dados = resp.json()
-        if isinstance(dados, list):
-            ultimo = dados[0]
-        else:
-            ultimo = dados
+qtd_concursos = st.slider("Escolha quantos concursos deseja capturar:", min_value=50, max_value=250, value=100)
+concursos = capturar_ultimos_resultados(qtd=qtd_concursos)
 
-        numero_atual = int(ultimo.get("concurso"))
+if concursos:
+    ultimo_num, ultima_data, ultima_dezenas = concursos[0]
+    st.markdown(f"<h4 style='text-align:center;'>Último Concurso: {ultimo_num} ({ultima_data})</h4>", unsafe_allow_html=True)
+    st.markdown(f"<h5 style='text-align:center;'>Dezenas Sorteadas: {', '.join(map(str, ultima_dezenas))}</h5>", unsafe_allow_html=True)
 
-        dezenas = sorted([int(d) for d in ultimo.get("dezenas")])
-        concursos.append(dezenas)
+    st.markdown("<h2 style='text-align:center;'>Estatísticas e Frequência</h2>", unsafe_allow_html=True)
+    freq = analisar_frequencia(concursos)
+    st.bar_chart(freq)
 
-        for i in range(1, qtd):
-            concurso_numero = numero_atual - i
-            resp = requests.get(f"{url_base}{concurso_numero}")
-            if resp.status_code == 200:
-                dados = resp.json()
-                if isinstance(dados, list):
-                    data = dados[0]
-                else:
-                    data = dados
+    st.markdown("<h2 style='text-align:center;'>Gerar Cartões Otimizados</h2>", unsafe_allow_html=True)
+    qtd_cartoes = st.slider("Quantos cartões deseja gerar?", 1, 20, 5)
+    cartoes = gerar_cartoes_otimizados(freq, qtd_cartoes)
 
-                dezenas = sorted([int(d) for d in data.get("dezenas")])
-                concursos.append(dezenas)
-            else:
-                st.warning(f"Concurso {concurso_numero} não encontrado ou erro na API.")
-                break
+    for i, cartao in enumerate(cartoes, start=1):
+        st.markdown(f"<h4 style='text-align:center;'>Cartão {i}: {', '.join(map(str, cartao))}</h4>", unsafe_allow_html=True)
 
-    except Exception as e:
-        st.error(f"Erro ao acessar API: {e}")
-
-    return concursos
-
-
-def main():
-    st.title("Análise e Geração de Cartões Lotofácil")
-    st.markdown("Selecione a quantidade de concursos para capturar via API para análise:")
-
-    qtd_concursos = st.slider("Número de concursos para capturar", min_value=10, max_value=250, value=100)
-
-    if st.button("Capturar e Analisar"):
-        with st.spinner("Capturando concursos..."):
-            concursos = capturar_ultimos_resultados(qtd=qtd_concursos)
-
-        if concursos:
-            st.success(f"{len(concursos)} concursos capturados com sucesso!")
-            stats = LotoFacilStats(concursos)
-
-            st.subheader("Estatísticas Gerais")
-            st.write(f"Frequência dos números: {stats.frequencia_numeros()}")
-            st.write(f"Soma média dos concursos: {stats.soma_media():.2f}")
-            st.write(f"Média de pares/impares por concurso: {stats.pares_impares_distribuicao()}")
-            st.write(f"Média de números consecutivos: {stats.numeros_consecutivos():.2f}")
-            st.write(f"Distribuição média por grupos (5 grupos de 5 números): {stats.grupos_distribuicao()}")
-            quentes_frios = stats.numeros_quentes_frios()
-            st.write(f"Números quentes (mais frequentes): {quentes_frios['quentes']}")
-            st.write(f"Números frios (menos frequentes): {quentes_frios['frios']}")
-
-            st.subheader("Geração de Cartões Otimizados")
-            n_cartoes = st.slider("Número de cartões para gerar", 1, 20, 5)
-            alvo_acertos = st.slider("Alvo mínimo de acertos (12 a 15)", 12, 15, 14)
-
-            cartoes = stats.gerar_cartoes_otimizados(num_cartoes=n_cartoes, alvo_min_acertos=alvo_acertos)
-
-            for i, c in enumerate(cartoes, 1):
-                st.write(f"Cartão {i}: {c}")
-
-
-if __name__ == "__main__":
-    main()
+st.markdown("---")
+st.markdown("<p style='text-align:center;'>SAMUCJ TECHNOLOGY</p>", unsafe_allow_html=True)
