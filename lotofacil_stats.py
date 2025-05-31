@@ -13,52 +13,37 @@ class LotoFacilStats:
         return dict(sorted(contador.items()))
 
     def soma_media(self):
-        somas = [sum(c) for c in self.concursos]
-        return sum(somas) / len(somas) if somas else 0
+        return sum(sum(c) for c in self.concursos) / len(self.concursos) if self.concursos else 0
 
     def pares_impares_distribuicao(self):
-        pares = []
-        impares = []
-        for c in self.concursos:
-            p = sum(1 for n in c if n % 2 == 0)
-            pares.append(p)
-            impares.append(15 - p)
+        pares = [sum(1 for n in c if n % 2 == 0) for c in self.concursos]
+        impares = [15 - p for p in pares]
         return {'pares': sum(pares)/len(pares), 'impares': sum(impares)/len(impares)}
 
     def numeros_consecutivos(self):
         consecutivos = []
         for c in self.concursos:
-            count = sum(1 for i in range(14) if c[i] + 1 == c[i+1])
+            count = sum(1 for i in range(len(c)-1) if c[i]+1 == c[i+1])
             consecutivos.append(count)
         return sum(consecutivos)/len(consecutivos) if consecutivos else 0
 
     def grupos_distribuicao(self):
-        grupos = {1:[], 2:[], 3:[], 4:[], 5:[]}
+        grupos = {i: [] for i in range(1, 6)}
         for c in self.concursos:
-            g1 = sum(1 for n in c if 1 <= n <= 5)
-            g2 = sum(1 for n in c if 6 <= n <= 10)
-            g3 = sum(1 for n in c if 11 <= n <= 15)
-            g4 = sum(1 for n in c if 16 <= n <= 20)
-            g5 = sum(1 for n in c if 21 <= n <= 25)
-            grupos[1].append(g1)
-            grupos[2].append(g2)
-            grupos[3].append(g3)
-            grupos[4].append(g4)
-            grupos[5].append(g5)
-        return {k: sum(v)/len(v) for k,v in grupos.items()}
+            grupos[1].append(sum(1 for n in c if 1 <= n <= 5))
+            grupos[2].append(sum(1 for n in c if 6 <= n <= 10))
+            grupos[3].append(sum(1 for n in c if 11 <= n <= 15))
+            grupos[4].append(sum(1 for n in c if 16 <= n <= 20))
+            grupos[5].append(sum(1 for n in c if 21 <= n <= 25))
+        return {k: sum(v)/len(v) for k, v in grupos.items()}
 
     def numeros_quentes_frios(self, top_n=10):
         freq = self.frequencia_numeros()
         ordenado = sorted(freq.items(), key=lambda x: x[1], reverse=True)
-        quentes = [num for num, _ in ordenado[:top_n]]
-        frios = [num for num, _ in ordenado[-top_n:]]
-        return {'quentes': quentes, 'frios': frios}
-
-    def simular_acertos(self, cartao, ultimos=20):
-        """Retorna a média de acertos de um cartão nos últimos 'ultimos' concursos"""
-        ultimos_concursos = self.concursos[:ultimos]
-        acertos = [len(set(cartao) & set(c)) for c in ultimos_concursos]
-        return sum(acertos) / len(acertos)
+        return {
+            'quentes': [num for num, _ in ordenado[:top_n]],
+            'frios': [num for num, _ in ordenado[-top_n:]]
+        }
 
     def gerar_cartoes_otimizados(self, num_cartoes=5, alvo_min_acertos=14):
         freq = self.frequencia_numeros()
@@ -69,11 +54,12 @@ class LotoFacilStats:
         media_pares = round(pares_impares['pares'])
         media_impares = 15 - media_pares
 
-        cartoes = []
-        tentativas = 0
-        max_tentativas = num_cartoes * 200
+        melhores_cartoes = []
 
-        while len(cartoes) < num_cartoes and tentativas < max_tentativas:
+        tentativas = 0
+        max_tentativas = num_cartoes * 100
+
+        while len(melhores_cartoes) < num_cartoes and tentativas < max_tentativas:
             tentativas += 1
             cartao = set()
 
@@ -82,23 +68,36 @@ class LotoFacilStats:
             pares_frios = [n for n in frios if n % 2 == 0]
             impares_frios = [n for n in frios if n % 2 != 0]
 
-            qtd_pares_quentes = media_pares // 2
-            qtd_pares_frios = media_pares - qtd_pares_quentes
-            qtd_impares_quentes = media_impares // 2
-            qtd_impares_frios = media_impares - qtd_impares_quentes
+            qtd_pq = media_pares // 2
+            qtd_pf = media_pares - qtd_pq
+            qtd_iq = media_impares // 2
+            qtd_if = media_impares - qtd_iq
 
-            cartao.update(random.sample(pares_quentes, min(qtd_pares_quentes, len(pares_quentes))))
-            cartao.update(random.sample(pares_frios, min(qtd_pares_frios, len(pares_frios))))
-            cartao.update(random.sample(impares_quentes, min(qtd_impares_quentes, len(impares_quentes))))
-            cartao.update(random.sample(impares_frios, min(qtd_impares_frios, len(impares_frios))))
+            cartao.update(random.sample(pares_quentes, min(qtd_pq, len(pares_quentes))))
+            cartao.update(random.sample(pares_frios, min(qtd_pf, len(pares_frios))))
+            cartao.update(random.sample(impares_quentes, min(qtd_iq, len(impares_quentes))))
+            cartao.update(random.sample(impares_frios, min(qtd_if, len(impares_frios))))
 
             while len(cartao) < 15:
                 cartao.add(random.choice(self.numeros))
 
             cartao = sorted(cartao)
-            media_acertos = self.simular_acertos(cartao)
+            ultimo = self.concursos[0]
+            acertos = len(set(cartao) & set(ultimo))
 
-            if cartao not in cartoes and media_acertos >= alvo_min_acertos:
-                cartoes.append(cartao)
+            if cartao not in melhores_cartoes:
+                if acertos >= alvo_min_acertos:
+                    melhores_cartoes.append(cartao)
 
-        return cartoes
+        if not melhores_cartoes:
+            # Relaxa a condição para retornar os melhores disponíveis
+            candidatos = []
+            while len(candidatos) < num_cartoes and tentativas < max_tentativas:
+                cartao = sorted(random.sample(self.numeros, 15))
+                acertos = len(set(cartao) & set(self.concursos[0]))
+                candidatos.append((acertos, cartao))
+                tentativas += 1
+            candidatos.sort(reverse=True)
+            return [c for _, c in candidatos[:num_cartoes]]
+
+        return melhores_cartoes
