@@ -28,28 +28,37 @@ class LotoFacilAvancado:
         return dict(sorted(contagem.items()))
 
     def gerar_cartoes_com_avancado(self, num_cartoes=5, alvo_min_acertos=13):
-        cartoes = []
-        tentativas = 0
-        max_tentativas = num_cartoes * 300  # tenta bastante para achar bons
+    cartoes_validos = []
+    candidatos = []
 
-        media_primos = round(self.media_primos())
-        media_multiplos = round(self.media_multiplos_3())
+    tentativas = 0
+    max_tentativas = num_cartoes * 1300
 
-        while len(cartoes) < num_cartoes and tentativas < max_tentativas:
-            dezenas = sorted(random.sample(range(1, 26), 15))
-            acertos_simulados = self.simular_desempenho(dezenas)
+    media_primos = round(self.media_primos())
+    media_multiplos = round(self.media_multiplos_3())
 
+    while len(cartoes_validos) < num_cartoes and tentativas < max_tentativas:
+        dezenas = sorted(random.sample(range(1, 26), 15))
+        acertos_simulados = self.simular_desempenho(dezenas)
+        qt_primos = len([d for d in dezenas if d in self.primos()])
+        qt_multiplos = len([d for d in dezenas if d in self.multiplos_3()])
+
+        if (media_primos - 1 <= qt_primos <= media_primos + 1) and \
+           (media_multiplos - 1 <= qt_multiplos <= media_multiplos + 1):
+            candidatos.append((acertos_simulados, dezenas))
             if acertos_simulados >= alvo_min_acertos:
-                qt_primos = len([d for d in dezenas if d in self.primos()])
-                qt_multiplos = len([d for d in dezenas if d in self.multiplos_3()])
+                cartoes_validos.append(dezenas)
 
-                if qt_primos == media_primos and qt_multiplos == media_multiplos:
-                    cartoes.append(dezenas)
+        tentativas += 1
 
-            tentativas += 1
+    if cartoes_validos:
+        return cartoes_validos
+    else:
+        # Fallback: retorna os melhores candidatos encontrados
+        candidatos.sort(reverse=True)  # ordena pelos que mais acertaram
+        return [d for _, d in candidatos[:num_cartoes]]
 
-        return cartoes
-
+    
     def simular_desempenho(self, cartao):
         # Simula acertos do cartão nos últimos 20 concursos
         historico = self.concursos[:20]
