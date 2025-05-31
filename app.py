@@ -2,7 +2,7 @@ import streamlit as st
 from lotofacil_stats import LotoFacilStats
 import requests
 
-# Estilização centralizada
+# Centralização de títulos e rodapé
 def titulo(texto):
     st.markdown(f"<h2 style='text-align: center; color: #4CAF50;'>{texto}</h2>", unsafe_allow_html=True)
 
@@ -12,7 +12,7 @@ def subtitulo(texto):
 def rodape(texto):
     st.markdown(f"<hr><p style='text-align: center; color: gray;'>{texto}</p>", unsafe_allow_html=True)
 
-# Captura concursos via API
+# Função para capturar concursos
 def capturar_ultimos_resultados(qtd=250):
     url_base = "https://loteriascaixa-api.herokuapp.com/api/lotofacil/"
     concursos = []
@@ -21,7 +21,7 @@ def capturar_ultimos_resultados(qtd=250):
         resp = requests.get(url_base)
         if resp.status_code != 200:
             st.error("Erro ao buscar o último concurso.")
-            return []
+            return [], None, None, None
 
         dados = resp.json()
         if isinstance(dados, list):
@@ -32,14 +32,6 @@ def capturar_ultimos_resultados(qtd=250):
         numero_atual = int(ultimo.get("concurso"))
         dezenas_atuais = sorted([int(d) for d in ultimo.get("dezenas")])
         data_atual = ultimo.get("data")
-
-        # Mostrar dados mais recentes centralizados
-        st.markdown(f"""
-            <div style="text-align: center;">
-                <h3>Concurso mais recente: {numero_atual} — {data_atual}</h3>
-                <p><strong>Dezenas sorteadas:</strong> {dezenas_atuais}</p>
-            </div>
-        """, unsafe_allow_html=True)
 
         concursos.append(dezenas_atuais)
 
@@ -58,12 +50,13 @@ def capturar_ultimos_resultados(qtd=250):
             else:
                 break
 
+        return concursos, numero_atual, data_atual, dezenas_atuais
+
     except Exception as e:
         st.error(f"Erro ao acessar API: {e}")
+        return [], None, None, None
 
-    return concursos
-
-# Interface principal
+# APP principal
 def main():
     titulo("🔢 LotoFácil Inteligente")
     subtitulo("Análise Estatística e Geração de Cartões Otimizados")
@@ -72,13 +65,24 @@ def main():
 
     if st.button("🔍 Capturar concursos"):
         with st.spinner("Buscando concursos..."):
-            concursos = capturar_ultimos_resultados(qtd=qtd_concursos)
+            concursos, numero, data, dezenas = capturar_ultimos_resultados(qtd=qtd_concursos)
             if concursos:
-                st.session_state.concursos = concursos
+                st.session_state["concursos"] = concursos
+                st.session_state["numero"] = numero
+                st.session_state["data"] = data
+                st.session_state["dezenas"] = dezenas
                 st.success("Concursos capturados com sucesso!")
 
     if "concursos" in st.session_state:
-        stats = LotoFacilStats(st.session_state.concursos)
+        # Mostrar o último concurso
+        st.markdown(f"""
+            <div style="text-align: center;">
+                <h3>Concurso mais recente: {st.session_state['numero']} — {st.session_state['data']}</h3>
+                <p><strong>Dezenas sorteadas:</strong> {st.session_state['dezenas']}</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        stats = LotoFacilStats(st.session_state["concursos"])
 
         titulo("📊 Estatísticas")
         st.write(f"**Frequência dos números:** {stats.frequencia_numeros()}")
@@ -92,16 +96,18 @@ def main():
 
         st.markdown("---")
         titulo("🎯 Gerar Cartões Otimizados")
+
         n_cartoes = st.slider("Número de cartões a gerar", 1, 20, 5)
         alvo_acertos = st.slider("Alvo mínimo de acertos (12 a 15)", 12, 15, 14)
 
         if st.button("🎰 Gerar Cartões"):
             cartoes = stats.gerar_cartoes_otimizados(num_cartoes=n_cartoes, alvo_min_acertos=alvo_acertos)
-            st.session_state.cartoes = cartoes
+            st.session_state["cartoes"] = cartoes
+            st.success(f"{len(cartoes)} cartões gerados com sucesso!")
 
         if "cartoes" in st.session_state:
             subtitulo("🃏 Cartões Gerados")
-            for i, c in enumerate(st.session_state.cartoes, 1):
+            for i, c in enumerate(st.session_state["cartoes"], 1):
                 st.markdown(f"<p style='text-align: center;'><strong>Cartão {i}:</strong> {c}</p>", unsafe_allow_html=True)
 
     rodape("© 2025 SAMUCJ TECHNOLOGY")
