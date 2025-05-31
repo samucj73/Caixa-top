@@ -94,8 +94,8 @@ else:
     # --- ABA 2: Geração de Cartões ---
     with abas[1]:
         st.subheader("🧾 Geração de Cartões Otimizados")
-        n_cartoes = st.slider("Quantidade de cartões", 1, 20, 5)
-        alvo_acertos = st.slider("Alvo mínimo de acertos simulados", 12, 15, 14)
+        n_cartoes = st.slider("Quantidade de cartões", 1, 200, 5)
+        alvo_acertos = st.slider("Alvo mínimo de acertos simulados", 11, 12, 15, 14)
         if st.button("🚀 Gerar Cartões"):
             gerados = avancado.gerar_cartoes_com_avancado(num_cartoes=n_cartoes, alvo_min_acertos=alvo_acertos)
             if gerados:
