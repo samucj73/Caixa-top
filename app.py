@@ -57,15 +57,18 @@ def main():
             with st.spinner("Capturando concursos..."):
                 st.session_state.concursos = capturar_ultimos_resultados(qtd=qtd_concursos)
 
+    # Sliders sempre visíveis (fora do botão), conforme solicitado
+    st.subheader("🎯 Parâmetros para Geração de Cartões")
+    num_cartoes = st.slider("Número de cartões a gerar", 1, 20, 5, key="slider_gerar")
+    alvo_minimo = st.slider("Alvo mínimo de acertos simulados", 12, 15, 14, key="slider_alvo")
+
     with col2:
         if st.button("🧠 Gerar Cartões"):
             if not st.session_state.concursos:
                 st.warning("Capture os concursos antes de gerar cartões.")
             else:
                 stats = LotoFacilStats(st.session_state.concursos)
-                n_cartoes = st.slider("Número de cartões para gerar", 1, 20, 5, key="slider_gerar")
-                alvo = st.slider("Alvo mínimo de acertos simulados (12 a 15)", 12, 15, 14, key="slider_alvo")
-                st.session_state.cartoes_gerados = stats.gerar_cartoes_otimizados(n_cartoes, alvo)
+                st.session_state.cartoes_gerados = stats.gerar_cartoes_otimizados(num_cartoes, alvo_minimo)
 
     with col3:
         if st.button("✅ Conferir Cartões"):
