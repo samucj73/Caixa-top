@@ -2,6 +2,7 @@ import streamlit as st
 from lotofacil_stats import LotoFacilStats
 from lotofacil_avancado import LotoFacilAvancado
 import requests
+import random
 
 st.set_page_config(page_title="Lotofácil Inteligente", layout="centered")
 
@@ -46,7 +47,7 @@ def capturar_ultimos_resultados(qtd=250):
         st.error(f"Erro ao acessar API: {e}")
         return [], None
 
-# Inicializar sessão
+# Sessão
 if "concursos" not in st.session_state:
     st.session_state.concursos = []
 
@@ -60,7 +61,7 @@ st.markdown("<h1 style='text-align: center;'>Lotofácil Inteligente</h1>", unsaf
 st.markdown("<p style='text-align: center;'>SAMUCJ TECHNOLOGY</p>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
-# Captura inicial de concursos
+# Captura de concursos
 with st.expander("📥 Capturar Concursos"):
     qtd_concursos = st.slider("Quantidade de concursos para análise", 10, 250, 100)
     if st.button("🔄 Capturar Agora"):
@@ -71,15 +72,14 @@ with st.expander("📥 Capturar Concursos"):
                 st.session_state.info_ultimo_concurso = info
                 st.success(f"{len(concursos)} concursos capturados com sucesso!")
 
-# Verifica se os dados estão prontos
 if not st.session_state.concursos:
     st.warning("Capture os concursos antes de utilizar as funcionalidades abaixo.")
 else:
-    abas = st.tabs(["📊 Estatísticas", "🧠 Gerar Cartões", "✅ Conferência", "📊 Análises Avançadas"])
+    abas = st.tabs(["📊 Estatísticas", "🧠 Gerar Cartões", "✅ Conferência", "📤 Conferir Arquivo TXT"])
     stats = LotoFacilStats(st.session_state.concursos)
-    avancado = LotoFacilAvancado(st.session_state.concursos)
+    stats_adv = LotoFacilAvancado(st.session_state.concursos)
 
-    # --- ABA 1: Estatísticas Gerais ---
+    # --- Aba 1 ---
     with abas[0]:
         st.subheader("📈 Estatísticas Gerais")
         st.write(f"Frequência dos números: {stats.frequencia_numeros()}")
@@ -91,13 +91,21 @@ else:
         st.write(f"Números quentes: {quentes_frios['quentes']}")
         st.write(f"Números frios: {quentes_frios['frios']}")
 
-    # --- ABA 2: Geração de Cartões ---
+        st.divider()
+        st.subheader("📐 Estatísticas Avançadas")
+        st.write(f"Média de primos por jogo: {stats_adv.media_primos():.2f}")
+        st.write(f"Distribuição de primos: {stats_adv.distribuicao_primos()}")
+        st.write(f"Média de múltiplos de 3 por jogo: {stats_adv.media_multiplos_3():.2f}")
+        st.write(f"Distribuição de múltiplos de 3: {stats_adv.distribuicao_multiplos_3()}")
+
+    # --- Aba 2 ---
     with abas[1]:
-        st.subheader("🧾 Geração de Cartões Otimizados")
-        n_cartoes = st.slider("Quantidade de cartões", 1, 200, 5)
-        alvo_acertos = st.slider("Alvo mínimo de acertos simulados",  11, 15, 14)
+        st.subheader("🧾 Geração de Cartões Otimizados com Estatísticas Avançadas")
+        n_cartoes = st.slider("Quantidade de cartões", 1, 20, 5)
+        alvo_acertos = st.slider("Alvo mínimo de acertos simulados", 12, 15, 14)
+
         if st.button("🚀 Gerar Cartões"):
-            gerados = avancado.gerar_cartoes_com_avancado(num_cartoes=n_cartoes, alvo_min_acertos=alvo_acertos)
+            gerados = stats_adv.gerar_cartoes_com_avancado(num_cartoes=n_cartoes, alvo_min_acertos=alvo_acertos)
             if gerados:
                 st.session_state.cartoes_gerados = gerados
                 st.success(f"{len(gerados)} cartões gerados!")
@@ -105,11 +113,16 @@ else:
                 st.error("Nenhum cartão atingiu o desempenho mínimo.")
 
         if st.session_state.cartoes_gerados:
-            st.subheader("Cartões Gerados")
+            st.subheader("📄 Cartões Gerados")
             for i, c in enumerate(st.session_state.cartoes_gerados, 1):
                 st.write(f"Cartão {i}: {c}")
 
-    # --- ABA 3: Conferência ---
+            st.subheader("📁 Exportar Cartões para TXT")
+            if st.button("💾 Exportar"):
+                conteudo = "\n".join(",".join(str(n) for n in cartao) for cartao in st.session_state.cartoes_gerados)
+                st.download_button("📥 Baixar Arquivo", data=conteudo, file_name="cartoes_lotofacil.txt", mime="text/plain")
+
+    # --- Aba 3 ---
     with abas[2]:
         st.subheader("🎯 Conferência de Cartões")
         if st.session_state.info_ultimo_concurso:
@@ -132,12 +145,38 @@ else:
                     acertos = len(set(cartao) & set(dezenas_ultimo))
                     st.write(f"Cartão {i}: {cartao} - **{acertos} acertos**")
 
-    # --- ABA 4: Estatísticas Avançadas ---
+    # --- Aba 4 ---
     with abas[3]:
-        st.subheader("🔍 Estatísticas Avançadas")
-        st.write(f"Média de números primos por concurso: {avancado.media_primos():.2f}")
-        st.write(f"Média de múltiplos de 3 por concurso: {avancado.media_multiplos_3():.2f}")
-        st.write(f"Distribuição de primos: {avancado.distribuicao_primos()}")
-        st.write(f"Distribuição de múltiplos de 3: {avancado.distribuicao_multiplos_3()}")
+        st.subheader("📤 Conferir Cartões de um Arquivo TXT")
+        uploaded_file = st.file_uploader("Faça upload do arquivo TXT com os cartões (formato: 15 dezenas separadas por vírgula)", type="txt")
+
+        if uploaded_file is not None:
+            linhas = uploaded_file.read().decode("utf-8").splitlines()
+            cartoes_txt = []
+            for linha in linhas:
+                try:
+                    dezenas = sorted([int(x) for x in linha.strip().split(",")])
+                    if len(dezenas) == 15 and all(1 <= x <= 25 for x in dezenas):
+                        cartoes_txt.append(dezenas)
+                except:
+                    continue
+
+            if cartoes_txt:
+                st.success(f"{len(cartoes_txt)} cartões carregados com sucesso.")
+                if st.session_state.info_ultimo_concurso:
+                    info = st.session_state.info_ultimo_concurso
+                    dezenas_ultimo = info["dezenas"]
+                    st.markdown(
+                        f"<h4 style='text-align: center;'>Último Concurso #{info['numero']} ({info['data']})<br>Dezenas: {info['dezenas']}</h4>",
+                        unsafe_allow_html=True
+                    )
+                    if st.button("📊 Conferir Cartões do Arquivo"):
+                        for i, cartao in enumerate(cartoes_txt, 1):
+                            acertos = len(set(cartao) & set(dezenas_ultimo))
+                            st.write(f"Cartão {i}: {cartao} - **{acertos} acertos**")
+                else:
+                    st.warning("Capture os concursos para saber o resultado mais recente.")
+            else:
+                st.error("Nenhum cartão válido foi encontrado no arquivo.")
 
 st.markdown("<hr><p style='text-align: center;'>SAMUCJ TECHNOLOGY</p>", unsafe_allow_html=True)
