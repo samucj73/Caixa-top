@@ -22,7 +22,6 @@ class LotoFacilAvancado:
         contagem = Counter()
         for jogo in self.concursos[:50]:  # últimos 50 concursos
             contagem.update(jogo)
-
         mais_sorteadas = [d for d, _ in contagem.most_common(10)]
         menos_sorteadas = [d for d, _ in contagem.most_common()[-10:]]
         return mais_sorteadas, menos_sorteadas
@@ -34,7 +33,7 @@ class LotoFacilAvancado:
 
     def gerar_cartoes_com_avancado(self, num_cartoes=5, alvo_min_acertos=13):
         def cartao_valido(cartao):
-            # 1. Números consecutivos: máx 3
+            # 1. Números consecutivos
             consecutivos = 1
             for i in range(1, len(cartao)):
                 if cartao[i] == cartao[i - 1] + 1:
@@ -44,7 +43,7 @@ class LotoFacilAvancado:
                 else:
                     consecutivos = 1
 
-            # 2. Repetição do último concurso
+            # 2. Repetição com último concurso
             if self.concursos:
                 ultimo = set(self.concursos[0])
                 if len(set(cartao) & ultimo) > 8:
@@ -56,7 +55,7 @@ class LotoFacilAvancado:
             if not (3 <= pares <= 12) or not (5 <= impares <= 12):
                 return False
 
-            # 4. Primos e múltiplos de 3 (baseado em médias)
+            # 4. Primos e múltiplos de 3
             qt_primos = sum(1 for d in cartao if d in self.primos())
             qt_multiplos = sum(1 for d in cartao if d in self.multiplos_3())
             if not (media_primos - 1 <= qt_primos <= media_primos + 1):
@@ -73,7 +72,7 @@ class LotoFacilAvancado:
             if not (180 <= soma <= 250):
                 return False
 
-            # 7. Distribuição por linha e coluna (mínimo 2 por linha/coluna)
+            # 7. Distribuição por linha e coluna
             linhas = [0] * 5
             colunas = [0] * 5
             for n in cartao:
@@ -84,23 +83,23 @@ class LotoFacilAvancado:
             if any(l < 2 for l in linhas) or any(c < 2 for c in colunas):
                 return False
 
-            # 8. Distribuição por quadrantes (mínimo 2 por quadrante)
-            quadrantes = [0, 0, 0, 0]  # Q1, Q2, Q3, Q4
+            # 8. Distribuição por quadrantes
+            quadrantes = [0, 0, 0, 0]
             for n in cartao:
                 linha = (n - 1) // 5
                 coluna = (n - 1) % 5
                 if linha < 3 and coluna < 3:
-                    quadrantes[0] += 1  # Q1
+                    quadrantes[0] += 1
                 elif linha < 3 and coluna >= 3:
-                    quadrantes[1] += 1  # Q2
+                    quadrantes[1] += 1
                 elif linha >= 3 and coluna < 3:
-                    quadrantes[2] += 1  # Q3
+                    quadrantes[2] += 1
                 else:
-                    quadrantes[3] += 1  # Q4
+                    quadrantes[3] += 1
             if any(q < 2 for q in quadrantes):
                 return False
 
-            # 9. Pelo menos 3 dezenas frias (menos sorteadas)
+            # 9. Pelo menos 3 dezenas frias
             dezenas_frias = [d for d in cartao if d in self.dezenas_frias]
             if len(dezenas_frias) < 3:
                 return False
@@ -134,3 +133,11 @@ class LotoFacilAvancado:
         else:
             candidatos.sort(reverse=True)
             return [d for _, d in candidatos[:num_cartoes]]
+
+    def distribuicao_primos(self):
+        contagem = Counter(len([n for n in jogo if n in self.primos()]) for jogo in self.concursos)
+        return dict(sorted(contagem.items()))
+
+    def distribuicao_multiplos_3(self):
+        contagem = Counter(len([n for n in jogo if n in self.multiplos_3()]) for jogo in self.concursos)
+        return dict(sorted(contagem.items()))
