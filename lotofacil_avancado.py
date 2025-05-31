@@ -4,6 +4,7 @@ from collections import Counter
 class LotoFacilAvancado:
     def __init__(self, concursos):
         self.concursos = concursos
+        self.dezenas_frequentes, self.dezenas_frias = self._frequencia_dezenas()
 
     def primos(self):
         return [2, 3, 5, 7, 11, 13, 17, 19, 23]
@@ -12,20 +13,19 @@ class LotoFacilAvancado:
         return [3, 6, 9, 12, 15, 18, 21, 24]
 
     def media_primos(self):
-        total = sum(len([n for n in jogo if n in self.primos()]) for jogo in self.concursos)
-        return total / len(self.concursos)
+        return sum(len([n for n in jogo if n in self.primos()]) for jogo in self.concursos) / len(self.concursos)
 
     def media_multiplos_3(self):
-        total = sum(len([n for n in jogo if n in self.multiplos_3()]) for jogo in self.concursos)
-        return total / len(self.concursos)
+        return sum(len([n for n in jogo if n in self.multiplos_3()]) for jogo in self.concursos) / len(self.concursos)
 
-    def distribuicao_primos(self):
-        contagem = Counter(len([n for n in jogo if n in self.primos()]) for jogo in self.concursos)
-        return dict(sorted(contagem.items()))
+    def _frequencia_dezenas(self):
+        contagem = Counter()
+        for jogo in self.concursos[:50]:  # últimos 50 concursos
+            contagem.update(jogo)
 
-    def distribuicao_multiplos_3(self):
-        contagem = Counter(len([n for n in jogo if n in self.multiplos_3()]) for jogo in self.concursos)
-        return dict(sorted(contagem.items()))
+        mais_sorteadas = [d for d, _ in contagem.most_common(10)]
+        menos_sorteadas = [d for d, _ in contagem.most_common()[-10:]]
+        return mais_sorteadas, menos_sorteadas
 
     def simular_desempenho(self, cartao):
         historico = self.concursos[:20]
@@ -34,34 +34,46 @@ class LotoFacilAvancado:
 
     def gerar_cartoes_com_avancado(self, num_cartoes=5, alvo_min_acertos=13):
         def cartao_valido(cartao):
+            # 1. Números consecutivos: máx 3
             consecutivos = 1
             for i in range(1, len(cartao)):
-                if cartao[i] == cartao[i-1] + 1:
+                if cartao[i] == cartao[i - 1] + 1:
                     consecutivos += 1
                     if consecutivos > 3:
                         return False
                 else:
                     consecutivos = 1
 
+            # 2. Repetição do último concurso
             if self.concursos:
                 ultimo = set(self.concursos[0])
                 if len(set(cartao) & ultimo) > 8:
                     return False
 
-            pares = sum(1 for n in cartao if n % 2 == 0)
-            if pares < 3 or pares > 12:
+            # 3. Pares e ímpares
+            pares = sum(1 for d in cartao if d % 2 == 0)
+            impares = 15 - pares
+            if not (3 <= pares <= 12) or not (5 <= impares <= 12):
                 return False
 
-            qt_primos = sum(1 for n in cartao if n in self.primos())
-            qt_multiplos = sum(1 for n in cartao if n in self.multiplos_3())
+            # 4. Primos e múltiplos de 3 (baseado em médias)
+            qt_primos = sum(1 for d in cartao if d in self.primos())
+            qt_multiplos = sum(1 for d in cartao if d in self.multiplos_3())
             if not (media_primos - 1 <= qt_primos <= media_primos + 1):
                 return False
             if not (media_multiplos - 1 <= qt_multiplos <= media_multiplos + 1):
                 return False
 
+            # 5. Já sorteado
             if cartao in self.concursos:
                 return False
 
+            # 6. Soma total entre 180 e 250
+            soma = sum(cartao)
+            if not (180 <= soma <= 250):
+                return False
+
+            # 7. Distribuição por linha e coluna (mínimo 2 por linha/coluna)
             linhas = [0] * 5
             colunas = [0] * 5
             for n in cartao:
@@ -72,12 +84,33 @@ class LotoFacilAvancado:
             if any(l < 2 for l in linhas) or any(c < 2 for c in colunas):
                 return False
 
+            # 8. Distribuição por quadrantes (mínimo 2 por quadrante)
+            quadrantes = [0, 0, 0, 0]  # Q1, Q2, Q3, Q4
+            for n in cartao:
+                linha = (n - 1) // 5
+                coluna = (n - 1) % 5
+                if linha < 3 and coluna < 3:
+                    quadrantes[0] += 1  # Q1
+                elif linha < 3 and coluna >= 3:
+                    quadrantes[1] += 1  # Q2
+                elif linha >= 3 and coluna < 3:
+                    quadrantes[2] += 1  # Q3
+                else:
+                    quadrantes[3] += 1  # Q4
+            if any(q < 2 for q in quadrantes):
+                return False
+
+            # 9. Pelo menos 3 dezenas frias (menos sorteadas)
+            dezenas_frias = [d for d in cartao if d in self.dezenas_frias]
+            if len(dezenas_frias) < 3:
+                return False
+
             return True
 
         cartoes_validos = []
         candidatos = []
         tentativas = 0
-        max_tentativas = num_cartoes * 1500
+        max_tentativas = num_cartoes * 2000
 
         media_primos = round(self.media_primos())
         media_multiplos = round(self.media_multiplos_3())
@@ -89,8 +122,8 @@ class LotoFacilAvancado:
                 continue
 
             acertos_simulados = self.simular_desempenho(dezenas)
-
             candidatos.append((acertos_simulados, dezenas))
+
             if acertos_simulados >= alvo_min_acertos:
                 cartoes_validos.append(dezenas)
 
