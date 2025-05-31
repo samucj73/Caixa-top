@@ -27,9 +27,13 @@ class LotoFacilAvancado:
         contagem = Counter(len([n for n in jogo if n in self.multiplos_3()]) for jogo in self.concursos)
         return dict(sorted(contagem.items()))
 
-        def gerar_cartoes_com_avancado(self, num_cartoes=5, alvo_min_acertos=13):
+    def simular_desempenho(self, cartao):
+        historico = self.concursos[:20]
+        acertos = [len(set(cartao) & set(jogo)) for jogo in historico]
+        return sum(acertos) / len(acertos) if acertos else 0
+
+    def gerar_cartoes_com_avancado(self, num_cartoes=5, alvo_min_acertos=13):
         def cartao_valido(cartao):
-            # 1. Máx. 3 números consecutivos
             consecutivos = 1
             for i in range(1, len(cartao)):
                 if cartao[i] == cartao[i-1] + 1:
@@ -39,18 +43,15 @@ class LotoFacilAvancado:
                 else:
                     consecutivos = 1
 
-            # 2. Máx. 8 dezenas repetidas do último concurso
             if self.concursos:
                 ultimo = set(self.concursos[0])
                 if len(set(cartao) & ultimo) > 8:
                     return False
 
-            # 3. Limite de pares (mín. 3, máx. 12)
             pares = sum(1 for n in cartao if n % 2 == 0)
             if pares < 3 or pares > 12:
                 return False
 
-            # 4. Primos e múltiplos de 3 dentro da média ±1
             qt_primos = sum(1 for n in cartao if n in self.primos())
             qt_multiplos = sum(1 for n in cartao if n in self.multiplos_3())
             if not (media_primos - 1 <= qt_primos <= media_primos + 1):
@@ -58,11 +59,9 @@ class LotoFacilAvancado:
             if not (media_multiplos - 1 <= qt_multiplos <= media_multiplos + 1):
                 return False
 
-            # 5. Evitar cartões já sorteados
             if cartao in self.concursos:
                 return False
 
-            # 6. Distribuição mínima por linha e coluna
             linhas = [0] * 5
             colunas = [0] * 5
             for n in cartao:
@@ -102,9 +101,3 @@ class LotoFacilAvancado:
         else:
             candidatos.sort(reverse=True)
             return [d for _, d in candidatos[:num_cartoes]]
-
-    def simular_desempenho(self, cartao):
-        # Simula acertos do cartão nos últimos 20 concursos
-        historico = self.concursos[:20]
-        acertos = [len(set(cartao) & set(jogo)) for jogo in historico]
-        return sum(acertos) / len(acertos) if acertos else 0
