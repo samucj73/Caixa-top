@@ -2,12 +2,18 @@ import streamlit as st
 from lotofacil_stats import LotoFacilStats
 import requests
 
-# Sessão de estado para guardar concursos e cartões gerados
+# Inicializa variáveis de estado
 if "concursos" not in st.session_state:
     st.session_state.concursos = []
 
 if "cartoes_gerados" not in st.session_state:
     st.session_state.cartoes_gerados = []
+
+if "num_cartoes" not in st.session_state:
+    st.session_state.num_cartoes = 5
+
+if "alvo_minimo" not in st.session_state:
+    st.session_state.alvo_minimo = 14
 
 def capturar_ultimos_resultados(qtd=250):
     url_base = "https://loteriascaixa-api.herokuapp.com/api/lotofacil/"
@@ -57,10 +63,10 @@ def main():
             with st.spinner("Capturando concursos..."):
                 st.session_state.concursos = capturar_ultimos_resultados(qtd=qtd_concursos)
 
-    # Sliders sempre visíveis (fora do botão), conforme solicitado
+    # Sliders sempre visíveis e armazenam estado
     st.subheader("🎯 Parâmetros para Geração de Cartões")
-    num_cartoes = st.slider("Número de cartões a gerar", 1, 20, 5, key="slider_gerar")
-    alvo_minimo = st.slider("Alvo mínimo de acertos simulados", 12, 15, 14, key="slider_alvo")
+    st.session_state.num_cartoes = st.slider("Número de cartões a gerar", 1, 20, st.session_state.num_cartoes, key="slider_cartoes")
+    st.session_state.alvo_minimo = st.slider("Alvo mínimo de acertos simulados", 12, 15, st.session_state.alvo_minimo, key="slider_alvo")
 
     with col2:
         if st.button("🧠 Gerar Cartões"):
@@ -68,7 +74,14 @@ def main():
                 st.warning("Capture os concursos antes de gerar cartões.")
             else:
                 stats = LotoFacilStats(st.session_state.concursos)
-                st.session_state.cartoes_gerados = stats.gerar_cartoes_otimizados(num_cartoes, alvo_minimo)
+                st.session_state.cartoes_gerados = stats.gerar_cartoes_otimizados(
+                    st.session_state.num_cartoes,
+                    st.session_state.alvo_minimo
+                )
+                if st.session_state.cartoes_gerados:
+                    st.success(f"{len(st.session_state.cartoes_gerados)} cartões gerados com sucesso!")
+                else:
+                    st.error("Nenhum cartão atingiu o desempenho mínimo.")
 
     with col3:
         if st.button("✅ Conferir Cartões"):
@@ -81,7 +94,6 @@ def main():
                     acertos = len(set(cartao) & set(ultimo))
                     st.write(f"Cartão {i}: {cartao} - **{acertos} acertos**")
 
-    # Exibir estatísticas se concursos foram capturados
     if st.session_state.concursos:
         stats = LotoFacilStats(st.session_state.concursos)
         st.subheader("📈 Estatísticas Gerais")
