@@ -1,5 +1,6 @@
 import streamlit as st
 from lotofacil_stats import LotoFacilStats
+from lotofacil_avancado import LotoFacilAvancado
 import requests
 
 st.set_page_config(page_title="Lotofácil Inteligente", layout="centered")
@@ -74,10 +75,11 @@ with st.expander("📥 Capturar Concursos"):
 if not st.session_state.concursos:
     st.warning("Capture os concursos antes de utilizar as funcionalidades abaixo.")
 else:
-    abas = st.tabs(["📊 Estatísticas", "🧠 Gerar Cartões", "✅ Conferência"])
+    abas = st.tabs(["📊 Estatísticas", "🧠 Gerar Cartões", "✅ Conferência", "📊 Análises Avançadas"])
     stats = LotoFacilStats(st.session_state.concursos)
+    avancado = LotoFacilAvancado(st.session_state.concursos)
 
-    # --- ABA 1: Estatísticas ---
+    # --- ABA 1: Estatísticas Gerais ---
     with abas[0]:
         st.subheader("📈 Estatísticas Gerais")
         st.write(f"Frequência dos números: {stats.frequencia_numeros()}")
@@ -95,7 +97,7 @@ else:
         n_cartoes = st.slider("Quantidade de cartões", 1, 20, 5)
         alvo_acertos = st.slider("Alvo mínimo de acertos simulados", 12, 15, 14)
         if st.button("🚀 Gerar Cartões"):
-            gerados = stats.gerar_cartoes_otimizados(num_cartoes=n_cartoes, alvo_min_acertos=alvo_acertos)
+            gerados = avancado.gerar_cartoes_com_avancado(num_cartoes=n_cartoes, alvo_min_acertos=alvo_acertos)
             if gerados:
                 st.session_state.cartoes_gerados = gerados
                 st.success(f"{len(gerados)} cartões gerados!")
@@ -129,5 +131,13 @@ else:
                 for i, cartao in enumerate(st.session_state.cartoes_gerados, 1):
                     acertos = len(set(cartao) & set(dezenas_ultimo))
                     st.write(f"Cartão {i}: {cartao} - **{acertos} acertos**")
+
+    # --- ABA 4: Estatísticas Avançadas ---
+    with abas[3]:
+        st.subheader("🔍 Estatísticas Avançadas")
+        st.write(f"Média de números primos por concurso: {avancado.media_primos():.2f}")
+        st.write(f"Média de múltiplos de 3 por concurso: {avancado.media_multiplos_3():.2f}")
+        st.write(f"Distribuição de primos: {avancado.distribuicao_primos()}")
+        st.write(f"Distribuição de múltiplos de 3: {avancado.distribuicao_multiplos_3()}")
 
 st.markdown("<hr><p style='text-align: center;'>SAMUCJ TECHNOLOGY</p>", unsafe_allow_html=True)
