@@ -1,4 +1,3 @@
-
 from collections import Counter
 import random
 
@@ -22,18 +21,14 @@ class LotoFacilStats:
         impares = []
         for c in self.concursos:
             p = sum(1 for n in c if n % 2 == 0)
-            i = 15 - p
             pares.append(p)
-            impares.append(i)
+            impares.append(15 - p)
         return {'pares': sum(pares)/len(pares), 'impares': sum(impares)/len(impares)}
 
     def numeros_consecutivos(self):
         consecutivos = []
         for c in self.concursos:
-            count = 0
-            for i in range(len(c)-1):
-                if c[i]+1 == c[i+1]:
-                    count += 1
+            count = sum(1 for i in range(14) if c[i] + 1 == c[i+1])
             consecutivos.append(count)
         return sum(consecutivos)/len(consecutivos) if consecutivos else 0
 
@@ -59,7 +54,13 @@ class LotoFacilStats:
         frios = [num for num, _ in ordenado[-top_n:]]
         return {'quentes': quentes, 'frios': frios}
 
-    def gerar_cartoes_otimizados(self, num_cartoes=5, alvo_min_acertos=None):
+    def simular_acertos(self, cartao, ultimos=20):
+        """Retorna a média de acertos de um cartão nos últimos 'ultimos' concursos"""
+        ultimos_concursos = self.concursos[:ultimos]
+        acertos = [len(set(cartao) & set(c)) for c in ultimos_concursos]
+        return sum(acertos) / len(acertos)
+
+    def gerar_cartoes_otimizados(self, num_cartoes=5, alvo_min_acertos=14):
         freq = self.frequencia_numeros()
         quentes = set(self.numeros_quentes_frios()['quentes'])
         frios = set(self.numeros_quentes_frios()['frios'])
@@ -68,10 +69,9 @@ class LotoFacilStats:
         media_pares = round(pares_impares['pares'])
         media_impares = 15 - media_pares
 
-        grupos_media = self.grupos_distribuicao()
         cartoes = []
         tentativas = 0
-        max_tentativas = num_cartoes * 100
+        max_tentativas = num_cartoes * 200
 
         while len(cartoes) < num_cartoes and tentativas < max_tentativas:
             tentativas += 1
@@ -93,17 +93,12 @@ class LotoFacilStats:
             cartao.update(random.sample(impares_frios, min(qtd_impares_frios, len(impares_frios))))
 
             while len(cartao) < 15:
-                n = random.choice(self.numeros)
-                cartao.add(n)
+                cartao.add(random.choice(self.numeros))
 
             cartao = sorted(cartao)
+            media_acertos = self.simular_acertos(cartao)
 
-            if alvo_min_acertos:
-                acertos_validos = any(len(set(cartao) & set(c)) >= alvo_min_acertos for c in self.concursos[:30])
-                if not acertos_validos:
-                    continue
-
-            if cartao not in cartoes:
+            if cartao not in cartoes and media_acertos >= alvo_min_acertos:
                 cartoes.append(cartao)
 
         return cartoes
